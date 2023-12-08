@@ -1,6 +1,6 @@
 # Triva Bot Telegram
 
- A trivia bot to get random quizzes in private chat or in groups with a ranking system.
+ A trivia bot to get random quizzes in private chat or in groups with a ranking system. Forked from Kekko01's original bot to use The Trivia API instead of Open Trivia DB. 
 
 [![GitHub issues](https://img.shields.io/github/issues/Kekko01/Trivia-Bot-Telegram)](https://github.com/Kekko01/Trivia-Bot-Telegram/issues)
 [![GitHub forks](https://img.shields.io/github/forks/Kekko01/Trivia-Bot-Telegram)](https://github.com/Kekko01/Trivia-Bot-Telegram/network)

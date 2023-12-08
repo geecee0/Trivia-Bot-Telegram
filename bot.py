@@ -2,34 +2,18 @@
 
 from datetime import datetime
 import logging
+import requests
 
 from credentials import telegram_token, db_host, db_name, db_user, db_password
-from trivia import trivia
-import random
-import mysql.connector
-
-from telegram import __version__ as TG_VER
-
-try:
-    from telegram import __version_info__
-except ImportError:
-    __version_info__ = (0, 0, 0, 0, 0)
-
-if __version_info__ < (20, 0, 0, "alpha", 1):
-    raise RuntimeError(
-        f"This bot is not compatible with your current PTB version {TG_VER}."
-    )
-from telegram.constants import ParseMode
-from telegram import (
-    Poll,
-    Update,
-)
+from telegram import ParseMode
 from telegram.ext import (
-    Application,
+    Updater,
     CommandHandler,
-    ContextTypes,
     PollAnswerHandler,
+    MessageHandler,
+    Filters,
 )
+
 
 # Enable logging
 logging.basicConfig(
@@ -38,58 +22,70 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+def start(update, context):
     """Inform user about what this bot can do"""
     if update.effective_chat.type == "private":
-        await update.effective_message.reply_text(
+        update.message.reply_text(
             "Hi " + update.effective_user.name +
-            " 👋! I'm a trivia bot. I can give you a quiz. Use /quiz to get a quiz. For add me to your group, use click here: https://t.me/free_trivia_bot?startgroup=true"
+            " 👋! I'm a trivia bot. I can give you a quiz. Use /quiz to get a quiz."
         )
     else:
-        await update.effective_message.reply_text(
+        update.message.reply_text(
             "Hi " + update.effective_chat.title +
             " 👋! I'm a trivia bot. I can give you a quiz and send a group ranking. Use /quiz to get a quiz."
         )
 
-async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+def quiz(update, context):
     """Send a quiz"""
-    questions = (await trivia.question(amount=1, category=0, difficulty=None, quizType=None))[0]
-    all_options=[]
-    for question in questions["incorrect_answers"]:
-        all_options.append(question)
-    all_options.append(questions["correct_answer"])
-    random.shuffle(all_options)
-    correct_position = all_options.index(questions["correct_answer"])
-    print(questions["correct_answer"])
-    message = await update.effective_message.reply_poll(
-        f"❔ Category: {questions['category']}\n⚠️ Difficulty: {questions['difficulty']}\n{questions['question']}", all_options, type=Poll.QUIZ, correct_option_id=correct_position, is_anonymous=False
-    )
-    # Save some info about the poll the bot_data for later use in receive_quiz_answer
-    payload = {
-        message.poll.id: {"chat_id": update.effective_chat.id,
-                          "message_id": message.message_id,
-                          "questions": all_options,
-                          "correct_option_id": correct_position}
-    }
-    context.bot_data.update(payload)
+    response = requests.get("https://the-trivia-api.com/v2/questions")
+    if response.status_code == 200:
+        questions = response.json().get("results", [])
+        if questions:
+            selected_question = questions[0]
+            all_options = selected_question.get("incorrect_answers", [])
+            all_options.append(selected_question.get("correct_answer", ""))
+            random.shuffle(all_options)
+            correct_position = all_options.index(selected_question["correct_answer"])
+            message = update.message.reply_poll(
+                f"❔ Category: {selected_question['category']}\n⚠️ Difficulty: {selected_question['difficulty']}\n{selected_question['question']}",
+                all_options,
+                type="quiz",
+                correct_option_id=correct_position,
+                is_anonymous=False,
+            )
+            # Save some info about the poll the bot_data for later use in receive_quiz_answer
+            payload = {
+                message.poll.id: {
+                    "chat_id": update.effective_chat.id,
+                    "message_id": message.message_id,
+                    "questions": all_options,
+                    "correct_option_id": correct_position,
+                }
+            }
+            context.bot_data.update(payload)
+    else:
+        update.message.reply_text("Failed to fetch trivia questions.")
 
 
-async def receive_quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+
+def receive_quiz_answer(update, context):
     """Receive the answer to a quiz"""
     # Get the poll id from the message
     poll_id = update.poll_answer.poll_id
     # Get the payload from the bot_data
-    payload = context.bot_data[poll_id]
-    # Get the chat_id and message_id from the payload
-    chat_id = payload["chat_id"]
-    # Get the correct_option_id from the payload
-    correct_option_id = payload["correct_option_id"]
-    # Get the answer from the user
-    answer = update.poll_answer.option_ids[0]
-    # Check if the answer is correct
-    if answer == correct_option_id:
-        # Add a point for correct answer
-        await add_point(update.poll_answer.user.id, chat_id, update.poll_answer.user.username)
+    payload = context.bot_data.get(poll_id)
+    if payload:
+        # Get the chat_id and message_id from the payload
+        chat_id = payload["chat_id"]
+        # Get the correct_option_id from the payload
+        correct_option_id = payload["correct_option_id"]
+        # Get the answer from the user
+        answer = update.poll_answer.option_ids[0]
+        # Check if the answer is correct
+        if answer == correct_option_id:
+            # Add a point for correct answer
+            add_point(update.poll_answer.user.id, chat_id, update.poll_answer.user.username)
+
 
 async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Display a help message"""
@@ -173,22 +169,21 @@ async def get_my_points(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     mydb.close()
 
 
-def main() -> None:
-    """Run bot."""
-    # Create the Application and pass it your bot's token.
-    application = Application.builder().token(telegram_token).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("quiz", quiz))
-    application.add_handler(CommandHandler("help", help_handler))
-    application.add_handler(PollAnswerHandler(receive_quiz_answer))
-    application.add_handler(CommandHandler("ranking", get_ranking))
-    application.add_handler(CommandHandler("points", get_my_points))
-    application.add_handler(CommandHandler("vote", vote_bot))
-    application.add_handler(CommandHandler("code", github_page))
+def main():
+    updater = Updater(telegram_token, use_context=True)
+    dp = updater.dispatcher
 
-    # Run the bot until the user presses Ctrl-C
-    application.run_polling()
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("quiz", quiz))
+    dp.add_handler(CommandHandler("help", help_handler))
+    dp.add_handler(PollAnswerHandler(receive_quiz_answer))
+    dp.add_handler(CommandHandler("ranking", get_ranking))
+    dp.add_handler(CommandHandler("points", get_my_points))
+    dp.add_handler(CommandHandler("vote", vote_bot))
+    dp.add_handler(CommandHandler("code", github_page))
 
+    updater.start_polling()
+    updater.idle()
 
 if __name__ == "__main__":
     main()

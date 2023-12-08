@@ -2,18 +2,34 @@
 
 from datetime import datetime
 import logging
-import requests
 
 from credentials import telegram_token, db_host, db_name, db_user, db_password
-from telegram.constants import ParseMode
-from telegram.ext import (
-    Updater,
-    CommandHandler,
-    PollAnswerHandler,
-    MessageHandler,
-    Filters,
-)
+from trivia import trivia
+import random
+import mysql.connector
 
+from telegram import __version__ as TG_VER
+
+try:
+    from telegram import __version_info__
+except ImportError:
+    __version_info__ = (0, 0, 0, 0, 0)
+
+if __version_info__ < (20, 0, 0, "alpha", 1):
+    raise RuntimeError(
+        f"This bot is not compatible with your current PTB version {TG_VER}."
+    )
+from telegram.constants import ParseMode
+from telegram import (
+    Poll,
+    Update,
+)
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    ContextTypes,
+    PollAnswerHandler,
+)
 
 # Enable logging
 logging.basicConfig(

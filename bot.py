@@ -5,7 +5,7 @@ import logging
 import requests
 
 from credentials import telegram_token, db_host, db_name, db_user, db_password
-from telegram import ParseMode
+from telegram.constants import ParseMode
 from telegram.ext import (
     Updater,
     CommandHandler,

@@ -8,6 +8,7 @@ from trivia import trivia
 import random
 import mysql.connector
 import requests
+import hashlib
 
 from telegram import __version__ as TG_VER
 
@@ -53,51 +54,86 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
 
 
-
 async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send a quiz"""
     api_url = 'https://the-trivia-api.com/v2/questions'
-    response = requests.get(api_url)
-    
-    if response.status_code == 200:
-        try:
-            data = response.json()
-            if isinstance(data, list) and data:
-                selected_question = random.choice(data)
-                question_text = selected_question.get('question', {}).get('text')
-                options = selected_question.get('incorrectAnswers', [])
-                correct_answer = selected_question.get('correctAnswer')
+    existing_question_ids = set()
+    mydb = mysql.connector.connect(
+        host=db_host,
+        database=db_name,
+        user=db_user,
+        password=db_password,
+    )
+    mycursor = mydb.cursor()
+    mycursor.execute("SELECT question_id FROM fetched_questions")
+    fetched_questions = mycursor.fetchall()
+    for row in fetched_questions:
+        existing_question_ids.add(row[0])
+    mycursor.close()
+    mydb.close()
 
-                if question_text and options and correct_answer:
-                    options.append(correct_answer)
-                    random.shuffle(options)
-                    correct_position = options.index(correct_answer)
+    count = 0
+    while count < 20000:
+        response = requests.get(api_url)
+        if response.status_code == 200:
+            try:
+                data = response.json()
+                if isinstance(data, list) and data:
+                    selected_question = random.choice(data)
+                    question_id = hashlib.sha256(selected_question.get('question', {}).get('text').encode()).hexdigest()
+                    if question_id not in existing_question_ids:
+                        mydb = mysql.connector.connect(
+                            host=db_host,
+                            database=db_name,
+                            user=db_user,
+                            password=db_password,
+                        )
+                        mycursor = mydb.cursor()
+                        sql = "INSERT INTO fetched_questions (question_id) VALUES (%s)"
+                        val = (question_id,)
+                        mycursor.execute(sql, val)
+                        mydb.commit()
+                        mycursor.close()
+                        mydb.close()
 
-                    message = await update.effective_message.reply_poll(
-                        f"❔ {question_text}",
-                        options,
-                        type=Poll.QUIZ,
-                        correct_option_id=correct_position,
-                        is_anonymous=False
-                    )
-                    # Save some info about the poll in bot_data for later use in receive_quiz_answer
-                    payload = {
-                        message.poll.id: {
-                            "chat_id": update.effective_chat.id,
-                            "message_id": message.message_id,
-                            "questions": options,
-                            "correct_option_id": correct_position
-                        }
-                    }
-                    context.bot_data.update(payload)
+                        count += 1
+                        question_text = selected_question.get('question', {}).get('text')
+                        options = selected_question.get('incorrectAnswers', [])
+                        correct_answer = selected_question.get('correctAnswer')
+
+                        if question_text and options and correct_answer:
+                            options.append(correct_answer)
+                            random.shuffle(options)
+                            correct_position = options.index(correct_answer)
+
+                            message = await update.effective_message.reply_poll(
+                                f"❔ {question_text}",
+                                options,
+                                type=Poll.QUIZ,
+                                correct_option_id=correct_position,
+                                is_anonymous=False
+                            )
+                            payload = {
+                                message.poll.id: {
+                                    "chat_id": update.effective_chat.id,
+                                    "message_id": message.message_id,
+                                    "questions": options,
+                                    "correct_option_id": correct_position
+                                }
+                            }
+                            context.bot_data.update(payload)
+                        else:
+                            await update.effective_message.reply_text("Invalid question format. Please try again.")
+                    else:
+                        continue
                 else:
-                    await update.effective_message.reply_text("Invalid question format. Please try again.")
-            else:
-                await update.effective_message.reply_text("No questions available at the moment.")
-        except Exception as e:
-            await update.effective_message.reply_text(f"Error: {e}")
-    else:
-        await update.effective_message.reply_text("Failed to fetch questions from the API.")
+                    await update.effective_message.reply_text("No questions available at the moment.")
+                    break
+            except Exception as e:
+                await update.effective_message.reply_text(f"Error: {e}")
+                break
+        else:
+            await update.effective_message.reply_text("Failed to fetch questions from the API.")
+            break
 
 async def receive_quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Receive the answer to a quiz"""

@@ -60,7 +60,7 @@ Visit [Python's official website](https://www.python.org/downloads/) and install
 
 ## How to install a MySQL DB?
 
-You can install, for example, [XAMPP](https://www.apachefriends.org/download.html).
+You might choose to install [XAMPP](https://www.apachefriends.org/download.html), as an example. 
 
 ## How to create a Telegram Bot?
 
@@ -80,6 +80,6 @@ vote - Vote the bot in BotsArchive
 code - Project's GitHub Page
 ```
 
-## Have you problems?
+## Problems?
 
-Don't worry, please you can found or create a issue here: <https://github.com/geecee0/Trivia-Bot-Telegram/issues>
+Please report any issues you encounter here: <https://github.com/geecee0/Trivia-Bot-Telegram/issues>

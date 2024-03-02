@@ -57,19 +57,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     api_url = 'https://the-trivia-api.com/v2/questions'
     existing_question_ids = set()
-    mydb = mysql.connector.connect(
+
+    # Fetch existing question IDs from the database
+    with mysql.connector.connect(
         host=db_host,
         database=db_name,
         user=db_user,
         password=db_password,
-    )
-    mycursor = mydb.cursor()
-    mycursor.execute("SELECT question_id FROM fetched_questions")
-    fetched_questions = mycursor.fetchall()
-    for row in fetched_questions:
-        existing_question_ids.add(row[0])
-    mycursor.close()
-    mydb.close()
+    ) as mydb, mydb.cursor() as mycursor:
+        mycursor.execute("SELECT question_id FROM fetched_questions")
+        existing_question_ids.update(row[0] for row in mycursor.fetchall())
 
     count = 0
     while count < 20000:
@@ -79,21 +76,20 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 data = response.json()
                 if isinstance(data, list) and data:
                     selected_question = random.choice(data)
-                    question_id = hashlib.sha256(selected_question.get('question', {}).get('text').encode()).hexdigest()
+                    question_id = selected_question.get('id')
+
                     if question_id not in existing_question_ids:
-                        mydb = mysql.connector.connect(
+                        with mysql.connector.connect(
                             host=db_host,
                             database=db_name,
                             user=db_user,
                             password=db_password,
-                        )
-                        mycursor = mydb.cursor()
-                        sql = "INSERT INTO fetched_questions (question_id) VALUES (%s)"
-                        val = (question_id,)
-                        mycursor.execute(sql, val)
-                        mydb.commit()
-                        mycursor.close()
-                        mydb.close()
+                        ) as mydb, mydb.cursor() as mycursor:
+                            # Insert the question_id into the database
+                            sql = "INSERT INTO fetched_questions (question_id) VALUES (%s)"
+                            val = (question_id,)
+                            mycursor.execute(sql, val)
+                            mydb.commit()
 
                         count += 1
                         question_text = selected_question.get('question', {}).get('text')
@@ -128,12 +124,13 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 else:
                     await update.effective_message.reply_text("No questions available at the moment.")
                     break
-            except Exception as e:
+            except (ValueError, KeyError, IndexError) as e:
                 await update.effective_message.reply_text(f"Error: {e}")
                 break
         else:
             await update.effective_message.reply_text("Failed to fetch questions from the API.")
             break
+
 
 async def receive_quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Receive the answer to a quiz"""

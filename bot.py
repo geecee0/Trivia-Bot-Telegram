@@ -53,7 +53,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             " 👋! I'm a trivia bot. I can give you a quiz and send a group ranking. Use /quiz to get a quiz."
         )
 
-
 async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     api_url = 'https://the-trivia-api.com/v2/questions'
     existing_question_ids = set()
@@ -68,68 +67,62 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         mycursor.execute("SELECT question_id FROM fetched_questions")
         existing_question_ids.update(row[0] for row in mycursor.fetchall())
 
-    count = 0
-    while count < 20000:
-        response = requests.get(api_url)
-        if response.status_code == 200:
-            try:
-                data = response.json()
-                if isinstance(data, list) and data:
-                    selected_question = random.choice(data)
-                    question_id = selected_question.get('id')
+    response = requests.get(api_url)
+    if response.status_code == 200:
+        try:
+            data = response.json()
+            if isinstance(data, list) and data:
+                selected_question = random.choice(data)
+                question_id = selected_question.get('id')
 
-                    if question_id not in existing_question_ids:
-                        with mysql.connector.connect(
-                            host=db_host,
-                            database=db_name,
-                            user=db_user,
-                            password=db_password,
-                        ) as mydb, mydb.cursor() as mycursor:
-                            # Insert the question_id into the database
-                            sql = "INSERT INTO fetched_questions (question_id) VALUES (%s)"
-                            val = (question_id,)
-                            mycursor.execute(sql, val)
-                            mydb.commit()
+                if question_id not in existing_question_ids:
+                    with mysql.connector.connect(
+                        host=db_host,
+                        database=db_name,
+                        user=db_user,
+                        password=db_password,
+                    ) as mydb, mydb.cursor() as mycursor:
+                        # Insert the question_id into the database
+                        sql = "INSERT INTO fetched_questions (question_id) VALUES (%s)"
+                        val = (question_id,)
+                        mycursor.execute(sql, val)
+                        mydb.commit()
 
-                        count += 1
-                        question_text = selected_question.get('question', {}).get('text')
-                        options = selected_question.get('incorrectAnswers', [])
-                        correct_answer = selected_question.get('correctAnswer')
+                    question_text = selected_question.get('question', {}).get('text')
+                    options = selected_question.get('incorrectAnswers', [])
+                    correct_answer = selected_question.get('correctAnswer')
 
-                        if question_text and options and correct_answer:
-                            options.append(correct_answer)
-                            random.shuffle(options)
-                            correct_position = options.index(correct_answer)
+                    if question_text and options and correct_answer:
+                        options.append(correct_answer)
+                        random.shuffle(options)
+                        correct_position = options.index(correct_answer)
 
-                            message = await update.effective_message.reply_poll(
-                                f"❔ {question_text}",
-                                options,
-                                type=Poll.QUIZ,
-                                correct_option_id=correct_position,
-                                is_anonymous=False
-                            )
-                            payload = {
-                                message.poll.id: {
-                                    "chat_id": update.effective_chat.id,
-                                    "message_id": message.message_id,
-                                    "questions": options,
-                                    "correct_option_id": correct_position
-                                }
+                        message = await update.effective_message.reply_poll(
+                            f"❔ {question_text}",
+                            options,
+                            type=Poll.QUIZ,
+                            correct_option_id=correct_position,
+                            is_anonymous=False
+                        )
+                        payload = {
+                            message.poll.id: {
+                                "chat_id": update.effective_chat.id,
+                                "message_id": message.message_id,
+                                "questions": options,
+                                "correct_option_id": correct_position
                             }
-                            context.bot_data.update(payload)
-                        else:
-                            await update.effective_message.reply_text("Invalid question format. Please try again.")
+                        }
+                        context.bot_data.update(payload)
                     else:
-                        continue
+                        await update.effective_message.reply_text("Invalid question format. Please try again.")
                 else:
-                    await update.effective_message.reply_text("No questions available at the moment.")
-                    break
-            except (ValueError, KeyError, IndexError) as e:
-                await update.effective_message.reply_text(f"Error: {e}")
-                break
-        else:
-            await update.effective_message.reply_text("Failed to fetch questions from the API.")
-            break
+                    await update.effective_message.reply_text("Question already posted. Please wait for the next round.")
+            else:
+                await update.effective_message.reply_text("No questions available at the moment.")
+        except (ValueError, KeyError, IndexError) as e:
+            await update.effective_message.reply_text(f"Error: {e}")
+    else:
+        await update.effective_message.reply_text("Failed to fetch questions from the API.")
 
 
 async def receive_quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

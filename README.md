@@ -1,24 +1,23 @@
-# Triva Bot Telegram
+# Trivia Bot Telegram
 
- A trivia bot to get random quizzes in private chat or in groups with a ranking system. Forked from Kekko01's original bot to use The Trivia API https://the-trivia-api.com/ instead of Open Trivia DB. 
+A personalized version of the trivia bot, offering random quizzes in private chat or groups with an upgraded ranking system. This fork diverges from the original by integrating The Trivia API (https://the-trivia-api.com/) instead of Open Trivia DB, and keeps track of questions previously asked to prevent repeated questions.
 
-[![GitHub issues](https://img.shields.io/github/issues/Kekko01/Trivia-Bot-Telegram)](https://github.com/Kekko01/Trivia-Bot-Telegram/issues)
-[![GitHub forks](https://img.shields.io/github/forks/Kekko01/Trivia-Bot-Telegram)](https://github.com/Kekko01/Trivia-Bot-Telegram/network)
-[![GitHub stars](https://img.shields.io/github/stars/Kekko01/Trivia-Bot-Telegram)](https://github.com/Kekko01/Trivia-Bot-Telegram/stargazers)
-[![GitHub license](https://img.shields.io/github/license/Kekko01/Trivia-Bot-Telegram)](https://github.com/Kekko01/Trivia-Bot-Telegram/blob/main/LICENSE)
-[![Twitter](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2FKekko01%2FTrivia-Bot-Telegram)](https://twitter.com/intent/tweet?text=Wow:&url=https%3A%2F%2Fgithub.com%2FKekko01%2FTrivia-Bot-Telegram)
+[![GitHub issues](https://img.shields.io/github/issues/geecee0/Trivia-Bot-Telegram)](https://github.com/geecee0/Trivia-Bot-Telegram/issues)
+[![GitHub forks](https://img.shields.io/github/forks/geecee0/Trivia-Bot-Telegram)](https://github.com/geecee0/Trivia-Bot-Telegram/network)
+[![GitHub stars](https://img.shields.io/github/stars/geecee0/Trivia-Bot-Telegram)](https://github.com/geecee0/Trivia-Bot-Telegram/stargazers)
+[![GitHub license](https://img.shields.io/github/license/geecee0/Trivia-Bot-Telegram)](https://github.com/geecee0/Trivia-Bot-Telegram/blob/main/LICENSE)
 
 ## What is it?
 
-Trivia Bot send quiz to chat (groups or personal chats) and if someone answers correctly, add a point. Also, can send a ranking with all members group with the points accumulated.
+The Trivia Bot sends quizzes to chat groups or personal chats. If someone answers correctly, they earn points. The bot can also send a ranking with all members in the group and their accumulated points. 
 
 ## How to clone bot and setup
 
-1. Download bot files from: <https://github.com/Kekko01/Trivia-Bot-Telegram/archive/refs/heads/main.zip>
+1. Download bot files from: <https://github.com/geecee0/Trivia-Bot-Telegram/archive/refs/heads/main.zip>
 
-2. Extract it and open folder
+2. Extract it and open the folder.
 
-3. Create file named **credentials.py** with the DB credentials and Telegram Token:
+3. Create a file named **credentials.py** with the DB credentials and Telegram Token:
 
     ```python
     telegram_token = "" # Telegram Bot Token
@@ -28,7 +27,7 @@ Trivia Bot send quiz to chat (groups or personal chats) and if someone answers c
     db_password = ""    # Database user password
     ```
 
-4. Create a MySQL DB o similar like MariaDB, and start this query in the database:
+4. Create a MySQL DB or similar like MariaDB, and execute the following query in the database:
 
     ```SQL
     CREATE TABLE `ranking` (
@@ -57,17 +56,17 @@ Trivia Bot send quiz to chat (groups or personal chats) and if someone answers c
 
 ## How to install Python?
 
-Go here: <https://www.python.org/downloads/> and install the verson for yout PC
+Visit [Python's official website](https://www.python.org/downloads/) and install the version for your PC.
 
 ## How to install a MySQL DB?
 
-You can install for example [XAMPP](https://www.apachefriends.org/download.html "XAMPP")
+You can install, for example, [XAMPP](https://www.apachefriends.org/download.html).
 
 ## How to create a Telegram Bot?
 
-Telegram Official Guide: <https://core.telegram.org/bots#3-how-do-i-create-a-bot>
+Refer to the [Telegram Official Guide](https://core.telegram.org/bots#3-how-do-i-create-a-bot).
 
-## There are commands?
+## Are there any commands?
 
 Yes, there are commands:
 
@@ -83,4 +82,4 @@ code - Project's GitHub Page
 
 ## Have you problems?
 
-Don't worry, please you can found or create a issue here: <https://github.com/Kekko01/Trivia-Bot-Telegram/issues>
+Don't worry, please you can found or create a issue here: <https://github.com/geecee0/Trivia-Bot-Telegram/issues>
